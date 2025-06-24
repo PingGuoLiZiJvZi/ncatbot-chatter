@@ -1,0 +1,6 @@
+*.ini
+*.db
+data
+*.pyc
+logs
+napcat
