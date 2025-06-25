@@ -1,6 +1,6 @@
 #IndexDB类是一个记录群聊id/用户id(int),群聊名/用户名(str)的数据库类
 #目前,只需实现添加和全获取功能即可
-from BaseDB import BaseDB
+from db.BaseDB import BaseDB
 import sqlite3
 
 class IndexDB(BaseDB):

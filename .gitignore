@@ -1,4 +1,5 @@
 config.yaml
+group_name.yaml
 *.db
 data
 *.pyc

@@ -21,11 +21,11 @@ class BaseLLM:
 	def send_messages(self)->str:
 		client = OpenAI(api_key=self.llm_api_key, base_url=self.llm_base_url)
 		response = client.chat.completions.create(
-        model = "deepseek-chat",
+        model = "deepseek-reasoner",
         messages = self.messages,
         stream = False,
         max_tokens = 2048,
-        temperature = 1.0,
+        temperature = 1.3,
     )
 		reply = response.choices[0].message.content
 		return reply
@@ -38,7 +38,9 @@ class ResponseLLM(BaseLLM):
 
 	def generate_response(self, *args, **kwargs):#收到的参数为dict->list->dict->list->dict
 		s = str(args[0])
-		self.messages.append({"role": "user", "content": s})
+		self.messages.append({"role": "user", "content": f"私聊消息:{s}"})
+		s = str(args[1])
+		self.messages.append({"role": "user", "content": f"群聊消息:{s}"})
 		reply = self.send_messages()
 		return reply
 

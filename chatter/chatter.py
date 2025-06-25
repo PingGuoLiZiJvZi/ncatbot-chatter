@@ -1,42 +1,159 @@
-from memory.memory import Memory
+from memory.memory import MemoryManager
+from llm.LLM import ResponseLLM
 from ncatbot.core import BotClient, GroupMessage, PrivateMessage
 from ncatbot.utils import get_log
+import yaml
+import json
+import time
+import threading
+import numpy as np
 class Chatter:
 	def __init__(self):
-		self.memory = Memory()
+		self.memory = MemoryManager()
 		self.bot = BotClient()
 		self._log = get_log()
-	
+		self.llm = ResponseLLM()
+
+		with open("config.yaml", "r", encoding="utf-8") as f:
+			file = yaml.safe_load(f)
+			self.bot_uin = file["bot_uin"]
+			self.root = file["root_uin"]
+			self.loop_interval = file["loop_interval"]
+			self.min_send_interval = file["min_send_interval"]
+			self.max_send_interval = file["max_send_interval"]
+		
 		@self.bot.group_event()
 		async def on_group_message(msg: GroupMessage):
 			self._log.info(msg)
-			if msg.raw_message == "测试":
-				await msg.reply(text="NcatBot 测试成功喵~")
+		
+			await self.memory.add_group_memory(msg)
 
 		@self.bot.private_event()
 		async def on_private_message(msg: PrivateMessage):
 			self._log.info(msg)
-			if msg.raw_message == "测试":
-				await self.bot.api.post_private_msg(msg.user_id, text="NcatBot 测试成功喵~")
 		
-		self.bot.run(bt_uin=3871740788,root=3040802074)
+			if(msg.user_id == int(self.root) and msg.raw_message == "启动"):
+				self._log.info("Bot is starting...")
+				t = threading.Thread(target=self.mainloop, daemon=True)
+				t.start()
+			else:
+				await self.memory.add_private_memory(msg)
+		
+	def run(self):
+		self.bot.run(bt_uin=self.bot_uin, root=self.root)
+
+	def calculate_send_interval(self):
+		a = self.min_send_interval
+		b = self.max_send_interval
+		mean = (a + b) / 2
+		std_dev = (b - a) / 6
+		random_number = np.random.normal(mean, std_dev)
+		random_number = max(a, min(b, random_number))
+		return random_number
+
+	def mainloop(self):
+		self._log.info("Bot is running...")
+		while True:
+			try:
+				self.loop()
+			except Exception as e:
+				self._log.error(f"An error occurred: {e}")
+			for memory in self.memory.private_memory:
+				if(len(memory.unread_memory) > 0):
+					continue
+			for memory in self.memory.group_memory:
+				if(len(memory.unread_memory) > 0):
+					continue
+			time.sleep(self.loop_interval*60)
+
+	def loop(self):
+		try:
+			private_memory = self.memory.get_all_private_memory()
+			group_memory = self.memory.get_all_group_memory()
+			response = self.llm.generate_response(private_memory, group_memory)
+			actions = self.parse_response(response)
+			for action in actions:
+				if action["行动类型"] == "发送消息":
+					self.send_message(action)
+
+					if action["聊天类型"] == "私聊":
+						for memory in self.memory.private_memory:
+							print("开始尝试加入私聊记忆")
+							memory.add_self_message(action)
+					elif action["聊天类型"] == "群聊":
+						for memory in self.memory.group_memory:
+							print("开始尝试加入群聊记忆")
+							memory.add_self_message(action)
+					
+					time.sleep(self.calculate_send_interval())
+
+			for memory in self.memory.private_memory:
+				memory.process_after_read()
+
+			for memory in self.memory.group_memory:
+				memory.process_after_read()
+
+			
+		except KeyError as e:
+			print(f"KeyError: {e} in loop method. Response: {response}")
 
 
-	def add_private_message(self, user_id: str, content: str):
-		self.memory.add_private_message(user_id, content)
 
-	def add_group_message(self, group_id: str, content: str):
-		self.memory.add_group_message(group_id, content)
 
-	def get_private_memory(self, user_id: str):
-		for memory in self.private_memory:
-			if memory.id == user_id:
-				return memory.get_all_messages()
-		return None
+	def parse_response(self, response: str) -> dict:
+		print(response)
+		try:
+			if response.endswith("'''"):
+				response = response[:-3]
 
-	def get_group_memory(self, group_id: str):
-		for memory in self.group_memory:
-			if memory.id == group_id:
-				return memory.get_all_messages()
-		return None
+			actions = json.loads(response)
+			if isinstance(actions, list):
+				return actions
+			else:
+				self._log.error("Response is not a list.")
+				return []
+		except json.JSONDecodeError as e:
+			self._log.error(f"JSON decode error: {e}")
+			return []
 
+	def send_message(self, message: dict):
+		if message["聊天类型"] == "私聊":
+			if message["引用某条消息"] == "无":
+				result = self.bot.api.post_private_msg_sync(message["聊天id"], message["消息内容"])
+			else:
+				result = self.bot.api.post_private_msg_sync(message["聊天id"], message["消息内容"], reply=message["引用某条消息"])
+			if result['retcode'] == 0:
+				print("发送成功")
+			else:
+				print("发送失败")
+
+		elif message["聊天类型"] == "群聊":
+			if( message["引用某条消息"] == "无"):
+				if message["@某人"] == "无":
+					result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"])
+				else:
+					result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"],at=message["@某人"])
+			else:
+				if message["@某人"] == "无":
+					result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"], reply=message["引用某条消息"])
+				else:
+					result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"], reply=message["引用某条消息"], at=message["@某人"])
+			if result['retcode'] == 0:
+				print("发送成功")
+			else:
+				print("发送失败")
+					
+		else:
+			self._log.error("Invalid chat type.")
+			return
+		
+# [
+# 	{
+# 		"行动类型":"<发送消息>",
+# 		"聊天类型":"<私聊/群聊>",
+# 		"聊天id":"<私聊id/群聊id>",
+# 		"消息内容":"<消息内容>",
+# 		"@某人":"<@某人(若需要@,此处写某人的qq号,不需要,写无,私聊一定写无)>",
+# 		"引用某条消息":"<引用某条消息(若引用,此处写消息id,不需要,写无)>"
+# 	}
+# ]
