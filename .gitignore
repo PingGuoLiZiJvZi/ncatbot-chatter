@@ -1,4 +1,4 @@
-*.ini
+config.yaml
 *.db
 data
 *.pyc
