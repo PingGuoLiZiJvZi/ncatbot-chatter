@@ -6,7 +6,9 @@ class BaseLLM:
 		with open("llm/prompt.yaml", "r", encoding="utf-8") as f:
 			file = yaml.safe_load(f)
 			self.messages.append({"role": "system", "content": file["prompt"]["base_prompt"]})
-			self.messages.append({"role": "system", "content": file["prompt"]["character_prompt"]})
+		with open("llm/character.yaml", "r", encoding="utf-8") as f:
+			file = yaml.safe_load(f)
+			self.messages.append({"role": "system", "content": file["character_prompt"]})
 			
 		with open("config.yaml", "r", encoding="utf-8") as f:
 			file = yaml.safe_load(f)

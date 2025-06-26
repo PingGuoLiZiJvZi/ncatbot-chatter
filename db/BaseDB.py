@@ -16,4 +16,7 @@ class BaseDB:
 	
 	def get_all_from_db(self,*args, **kwargs):
 		raise NotImplementedError("This method should be implemented by subclasses.")
+	
+	def clear_db(self,*args, **kwargs):
+		raise NotImplementedError("This method should be implemented by subclasses.")
 

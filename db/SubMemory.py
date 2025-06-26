@@ -32,10 +32,12 @@ class SubMemory(BaseDB):
 		if len(self.read_memory) > self.max_length:
 			message = self.llm.generate_response(self.unread_memory, self.read_memory, self.pending_memory, self.get_all_from_db())
 			print("Generated message:", message)
+			self.clear_db()
 			self.add_to_db(message)
 			with self.lock:
-				self.pending_memory = self.read_memory
+				self.pending_memory = list(self.read_memory)
 				self.read_memory.clear()
+				
 	
 #在记忆中，仅有长期记忆保存在数据库中，以时间戳+内容的形式存储
 #短期群聊记忆保存为发送时间，消息id，发送人id，发送人昵称，发送人群昵称，发送内容的字典形式
@@ -89,6 +91,10 @@ class PrivateMemory(SubMemory):
 		self.cursor.execute('INSERT INTO private_memory (timestamp, content) VALUES (?, ?)', (timestamp, string))
 		self.conn.commit()	
 
+	def clear_db(self, *args, **kwargs):
+		self.cursor.execute('DELETE FROM private_memory')
+		self.conn.commit()
+
 	def get_all(self):
 		dict={}
 		dict["描述"] = f"私聊记忆,用户:{self.user_name},QQ号:{self.uin}"
@@ -127,6 +133,10 @@ class GroupMemory(SubMemory):
 		}
 		with self.lock:
 			self.unread_memory.append(dict_message)
+
+	def clear_db(self, *args, **kwargs):
+		self.cursor.execute('DELETE FROM group_memory')
+		self.conn.commit()
 
 	def add_self_message(self, message):
 		try:

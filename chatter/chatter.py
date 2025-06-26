@@ -101,8 +101,9 @@ class Chatter:
 
 
 	def parse_response(self, response: str) -> dict:
+		print(f"Received response: {response}")
 		try:
-			response = response.replace("'''json", "").replace("[]", "").replace("'''", "")
+			response = response.replace("```json", "").replace("[]", "").replace("```", "")
 			if(response == ""):
 				response = "[]"
 			print(response)

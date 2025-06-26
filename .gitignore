@@ -1,5 +1,6 @@
 config.yaml
 group_name.yaml
+character.yaml
 *.db
 data
 *.pyc
