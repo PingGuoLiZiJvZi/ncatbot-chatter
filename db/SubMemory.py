@@ -28,9 +28,10 @@ class SubMemory(BaseDB):
 
 	
 	def process_after_read(self):
-	
+		print("Processing after read...")
 		if len(self.read_memory) > self.max_length:
 			message = self.llm.generate_response(self.unread_memory, self.read_memory, self.pending_memory, self.get_all_from_db())
+			print("Generated message:", message)
 			self.add_to_db(message)
 			with self.lock:
 				self.pending_memory = self.read_memory
@@ -48,7 +49,7 @@ class PrivateMemory(SubMemory):
 		self.conn = sqlite3.connect(self.path,check_same_thread=False)
 		self.cursor = self.conn.cursor()
 		self.cursor.execute('''CREATE TABLE IF NOT EXISTS private_memory (
-			timestamp INTEGER PRIMARY KEY,
+			timestamp TEXT PRIMARY KEY,
 			content TEXT NOT NULL
 		)''')
 		self.conn.commit()
@@ -110,7 +111,7 @@ class GroupMemory(SubMemory):
 		self.conn = sqlite3.connect(self.path,check_same_thread=False)
 		self.cursor = self.conn.cursor()
 		self.cursor.execute('''CREATE TABLE IF NOT EXISTS group_memory (
-			timestamp INTEGER PRIMARY KEY,
+			timestamp TEXT PRIMARY KEY,
 			content TEXT NOT NULL
 		)''')
 		self.conn.commit()

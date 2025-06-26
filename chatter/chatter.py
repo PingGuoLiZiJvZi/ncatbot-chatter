@@ -101,11 +101,11 @@ class Chatter:
 
 
 	def parse_response(self, response: str) -> dict:
-		print(response)
 		try:
-			if response.endswith("'''"):
-				response = response[:-3]
-
+			response = response.replace("'''json", "").replace("[]", "").replace("'''", "")
+			if(response == ""):
+				response = "[]"
+			print(response)
 			actions = json.loads(response)
 			if isinstance(actions, list):
 				return actions
@@ -117,6 +117,7 @@ class Chatter:
 			return []
 
 	def send_message(self, message: dict):
+		print(f"Sending message: {message}")
 		if message["聊天类型"] == "私聊":
 			if message["引用某条消息"] == "无":
 				result = self.bot.api.post_private_msg_sync(message["聊天id"], message["消息内容"])
@@ -134,10 +135,10 @@ class Chatter:
 				else:
 					result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"],at=message["@某人"])
 			else:
-				if message["@某人"] == "无":
-					result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"], reply=message["引用某条消息"])
-				else:
-					result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"], reply=message["引用某条消息"], at=message["@某人"])
+				# if message["@某人"] == "无":
+				result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"], reply=message["引用某条消息"])
+				# else:
+				# 	result = self.bot.api.post_group_msg_sync(message["聊天id"], message["消息内容"], reply=message["引用某条消息"], at=message["@某人"])
 			if result['retcode'] == 0:
 				print("发送成功")
 			else:

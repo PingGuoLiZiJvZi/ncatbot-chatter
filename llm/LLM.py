@@ -21,7 +21,7 @@ class BaseLLM:
 	def send_messages(self)->str:
 		client = OpenAI(api_key=self.llm_api_key, base_url=self.llm_base_url)
 		response = client.chat.completions.create(
-        model = "deepseek-reasoner",
+        model = "deepseek-chat",
         messages = self.messages,
         stream = False,
         max_tokens = 2048,
