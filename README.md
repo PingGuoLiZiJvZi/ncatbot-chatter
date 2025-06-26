@@ -20,14 +20,14 @@
 ---
 
 ## ⚙️ 配置
-
-1. 在项目根目录下，运行以下命令进行依赖下载：
+1. python版本为3.12.9
+2. 在项目根目录下，运行以下命令进行依赖下载：
 ```bash
 pip install -r requirements.txt
 ```
-2. 按照要求，修改根目录下的 config.yaml.template 中的所有键的对应值，将文件重命名为 config.yaml
-3. 因为群聊名称无法从消息中获取，对于你希望能标记群名称的群聊，请修改 db 目录下 group_name.yaml.template，添加对应 群聊id: 群聊名 的键值对，并将文件重命名为 group_name.yaml ,对于未标记的群聊，群聊名将会被标识为未知群名
-4. 请在llm/character.yaml.template 中的 character_prompt: 后添加自己的角色设定与背景信息,随后将文件重命名为 character.yaml
+3. 按照要求，修改根目录下的 config.yaml.template 中的所有键的对应值，将文件重命名为 config.yaml
+4. 因为群聊名称无法从消息中获取，对于你希望能标记群名称的群聊，请修改 db 目录下 group_name.yaml.template，添加对应 群聊id: 群聊名 的键值对，并将文件重命名为 group_name.yaml ,对于未标记的群聊，群聊名将会被标识为未知群名
+5. 请在llm/character.yaml.template 中的 character_prompt: 后添加自己的角色设定与背景信息,随后将文件重命名为 character.yaml
 
 ---
 
