@@ -1,0 +1,8 @@
+bot_uin: 你的bot账号
+root_uin: 你的管理员账号
+api_key: 你的deepseek apikey
+base_url: 你的deepseek api网址
+max_length: 短期记忆最长限度
+loop_interval: 主动循环间隔 # 单位: 分钟
+min_send_interval: 最短消息发送间隔 # 单位: 秒
+max_send_interval: 最长消息发送间隔 # 单位: 秒

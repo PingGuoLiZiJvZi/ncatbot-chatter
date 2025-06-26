@@ -38,9 +38,13 @@ class MemoryManager:
 
 	async def add_group_memory(self, message: GroupMessage):
 		group_id = message.group_id
-		with open("db/group_name.yaml", "r", encoding="utf-8") as f:
-			file = yaml.safe_load(f)
-			group_name = file.get(group_id, "群名未知")
+		try:
+			with open("db/group_name.yaml", "r", encoding="utf-8") as f:
+				file = yaml.safe_load(f)
+				group_name = file.get(group_id, "群名未知")
+		except FileNotFoundError:
+			group_name = "群名未知"
+			
 		if not self.group_indexDB.select_from_db(group_id):
 			self.group_indexDB.add_to_db(group_id, group_name)
 			group_memory = GroupMemory(group_id, group_name)
