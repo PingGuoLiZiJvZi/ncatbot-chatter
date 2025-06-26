@@ -5,6 +5,7 @@ from ncatbot.core import GroupMessage, PrivateMessage
 from datetime import datetime
 import yaml
 import threading
+import os
 #subMemory也是一个抽象类
 class SubMemory(BaseDB):
 	def __init__(self):
@@ -47,6 +48,10 @@ class PrivateMemory(SubMemory):
 		super().__init__()
 		self.uin = uin
 		self.user_name = user_name
+
+		if not os.path.exists("db/private_memory"):
+			os.makedirs("db/private_memory")
+
 		self.path = f"db/private_memory/{self.uin}.db"
 		self.conn = sqlite3.connect(self.path,check_same_thread=False)
 		self.cursor = self.conn.cursor()
@@ -117,6 +122,10 @@ class GroupMemory(SubMemory):
 		super().__init__()
 		self.group_id = group_id
 		self.group_name = group_name
+		
+		if not os.path.exists("db/group_memory"):
+			os.makedirs("db/group_memory")
+
 		self.path = f"db/group_memory/{self.group_id}.db"
 		self.conn = sqlite3.connect(self.path,check_same_thread=False)
 		self.cursor = self.conn.cursor()
