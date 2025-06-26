@@ -73,10 +73,14 @@ class PrivateMemory(SubMemory):
 			print(f"KeyError: {e} in add_self_message method of PrivateMemory class. Message: {message}")
 
 	def add_to_memory(self, message: PrivateMessage):
+		text = ""
+		for mess in message.message:
+			if(mess['type'] == 'text'):
+				text = mess['data']['text']
 		dict_message = {
 			"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
 			"message_id": message.message_id,
-			"content": message.raw_message
+			"content": text
 		}
 		with self.lock:
 			self.unread_memory.append(dict_message)
@@ -123,13 +127,17 @@ class GroupMemory(SubMemory):
 		self.conn.commit()
 
 	def add_to_memory(self, message: GroupMessage):
+		text = ""
+		for mess in message.message:
+			if(mess['type'] == 'text'):
+				text = mess['data']['text']
 		dict_message = {
 			"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
 			"message_id": message.message_id,
 			"user_id": message.sender.user_id,
 			"user_nickname": message.sender.nickname,
 			"group_nickname": message.sender.card,
-			"content": message.raw_message
+			"content": text
 		}
 		with self.lock:
 			self.unread_memory.append(dict_message)

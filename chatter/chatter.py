@@ -25,7 +25,7 @@ class Chatter:
 		@self.bot.group_event()
 		async def on_group_message(msg: GroupMessage):
 			self._log.info(msg)
-		
+
 			await self.memory.add_group_memory(msg)
 
 		@self.bot.private_event()
@@ -98,14 +98,23 @@ class Chatter:
 			print(f"KeyError: {e} in loop method. Response: {response}")
 
 
-
+	def get_json_list(self, data: str) -> str:
+		last_close_bracket_index = data.rfind(']')
+		# 查找倒数第一个 '[' 的下标
+		last_open_bracket_index = data.rfind('[')
+		
+		# 如果两个字符都存在，并且 '[' 在 ']' 的左边
+		if last_close_bracket_index != -1 and last_open_bracket_index != -1 and last_open_bracket_index < last_close_bracket_index:
+			# 切片出它们之间的部分
+			return data[last_open_bracket_index :last_close_bracket_index+1]
+		else:
+			# 如果条件不满足，返回空字符串
+			return "[]"
 
 	def parse_response(self, response: str) -> dict:
 		print(f"Received response: {response}")
 		try:
-			response = response.replace("```json", "").replace("[]", "").replace("```", "")
-			if(response == ""):
-				response = "[]"
+			response = self.get_json_list(response)
 			print(response)
 			actions = json.loads(response)
 			if isinstance(actions, list):
