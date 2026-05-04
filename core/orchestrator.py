@@ -75,7 +75,9 @@ class Orchestrator:
         ))
 
     def run_passive_tick(self) -> None:
-        self._drain_ingest()
+        drained = self._drain_ingest()
+        if drained:
+            logger.info("Drained %d messages from queue", drained)
         self._drain_state_events()
         self.state.tick(datetime.now())
 
@@ -103,10 +105,12 @@ class Orchestrator:
         if not decision.plans:
             return
 
+        logger.info("Passive tick: %d plan(s) generated, generating content...", len(decision.plans))
         self.action_log.record_planned(decision.plans)
 
         try:
             generated = self.content_gen.generate(decision.plans)
+            logger.info("Content generation returned %d action(s)", len(generated) if generated else 0)
         except Exception as e:
             logger.error("Content generation failed in passive tick: %s", e)
             self._emit_event(StateEventType.LLM_FAILED, {"tick_type": "passive", "error": str(e)})
@@ -160,6 +164,7 @@ class Orchestrator:
 
     def _record_and_schedule(self, generated: list[GeneratedAction]) -> None:
         if not generated:
+            logger.warning("_record_and_schedule called with empty list")
             return
 
         self.action_log.record_generated(generated)

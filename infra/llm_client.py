@@ -4,7 +4,13 @@ import logging
 import time
 from typing import Any
 
+import os
+
 import anthropic
+
+# Remove env vars so anthropic SDK uses only the api_key passed to constructor
+for _env in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+    os.environ.pop(_env, None)
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +88,11 @@ class LLMClient:
                     kwargs["system"] = system_text
 
                 resp = self._client.messages.create(**kwargs)
-                text = resp.content[0].text if resp.content else ""
+                text = ""
+                for block in resp.content:
+                    if hasattr(block, "text"):
+                        text = block.text
+                        break
                 logger.debug("LLM response length=%d", len(text))
                 return text
             except anthropic.APITimeoutError as e:

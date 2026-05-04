@@ -10,10 +10,11 @@ def setup_logger(
     log_dir: str = "logs",
     level: int = logging.DEBUG,
 ) -> logging.Logger:
-    logger = logging.getLogger(name)
-    if logger.handlers:
-        return logger
-    logger.setLevel(level)
+    # Configure the root logger so all module loggers (core.*, infra.*, etc.) inherit handlers
+    root = logging.getLogger()
+    if root.handlers:
+        return root
+    root.setLevel(level)
 
     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
@@ -26,7 +27,7 @@ def setup_logger(
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
     ch.setFormatter(fmt)
-    logger.addHandler(ch)
+    root.addHandler(ch)
 
     # File handler: DEBUG+
     fh = logging.FileHandler(
@@ -34,7 +35,7 @@ def setup_logger(
     )
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(fmt)
-    logger.addHandler(fh)
+    root.addHandler(fh)
 
     # Error file handler: ERROR+
     eh = logging.FileHandler(
@@ -42,6 +43,6 @@ def setup_logger(
     )
     eh.setLevel(logging.ERROR)
     eh.setFormatter(fmt)
-    logger.addHandler(eh)
+    root.addHandler(eh)
 
-    return logger
+    return root

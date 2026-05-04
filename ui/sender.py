@@ -116,12 +116,11 @@ class DelaySendScheduler:
         action = item.action
         plan = action.plan
 
-        # pre_send_check
-        # Note: we don't have state/memory here, so we pass minimal info
-        # The full pre_send_check is done in the orchestrator before scheduling
         if not self.action_log.mark_as_sending(plan.action_id):
             logger.warning("Failed to mark %s as sending (already processed)", plan.action_id)
             return
+
+        logger.info("Sending %s to %s (%s): %s", plan.action_id, plan.chat_id, plan.chat_type, action.content[:50])
 
         if plan.chat_type == "group":
             result = self.bot_adapter.send_group_msg(
