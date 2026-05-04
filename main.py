@@ -4,6 +4,8 @@ import logging
 import queue
 import sys
 
+from ncatbot.core import BotClient
+
 from conf.loader import ConfigLoader
 from conf.schema import BotConfig
 from core.activity_curve import ActivityCurve
@@ -17,6 +19,7 @@ from core.active_gate import ActiveSpeakGate
 from core.state import BotState, StateEventQueue
 from generation.content_gen import ContentGenerator
 from generation.formatter import ResponseFormatter
+from generation.recheck import RecheckService
 from infra.action_log import ActionLog
 from infra.bot_adapter import BotAdapter
 from infra.llm_client import LLMClient
@@ -33,8 +36,12 @@ from ui.sender import DelaySendScheduler
 logger = logging.getLogger(__name__)
 
 
-def build_app(config_path: str = "conf/bot.yaml") -> tuple:
-    """Assemble all components and return (main_loop, shutdown_manager, incoming_queue)."""
+def build_app(bot: BotClient, config_path: str = "conf/bot.yaml") -> tuple:
+    """Assemble all components and return (main_loop, shutdown_manager).
+
+    Registers ncatbot event handlers on *bot* that feed messages into the
+    internal pipeline.
+    """
     config = ConfigLoader.load(config_path)
     setup_logger("chatter", log_dir="logs")
 
@@ -74,12 +81,22 @@ def build_app(config_path: str = "conf/bot.yaml") -> tuple:
     content_gen = ContentGenerator(llm, formatter)
     degraded_policy = DegradedReplyPolicy(config)
 
+    # Recheck (pre-send LLM filter using fast model)
+    llm_flash = LLMClient(
+        api_key=config.api_key,
+        base_url=config.base_url,
+        model=config.recheck_model,
+        temperature=0.3,
+        max_tokens=32,
+    )
+    recheck = RecheckService(llm_flash, memory)
+
     # Concentration
     concentrator = ConcentrateJob(llm, long_term, config)
 
     # Brake & Send
     brake = EmergencyBrake(config)
-    adapter = BotAdapter(bot=None)
+    adapter = BotAdapter(bot=bot)
     sender = DelaySendScheduler(adapter, action_log, brake, state_events, config)
 
     # Orchestrator
@@ -97,6 +114,7 @@ def build_app(config_path: str = "conf/bot.yaml") -> tuple:
         state_events=state_events,
         ingestor=ingestor,
         concentrator=concentrator,
+        recheck=recheck,
     )
 
     # Main loop
@@ -115,16 +133,37 @@ def build_app(config_path: str = "conf/bot.yaml") -> tuple:
         llm=llm,
     )
 
-    return main_loop, shutdown_mgr, incoming_queue
+    # ── Register ncatbot event handlers ──────────────────────────────
+    @bot.group_event()
+    async def on_group_message(msg):
+        logger.info("Group message from %s in %s: %s", msg.user_id, msg.group_id, msg.raw_message[:50] if hasattr(msg, 'raw_message') else '')
+        incoming_queue.put(msg)
+
+    @bot.private_event()
+    async def on_private_message(msg):
+        logger.info("Private message from %s: %s", msg.user_id, msg.raw_message[:50] if hasattr(msg, 'raw_message') else '')
+        incoming_queue.put(msg)
+
+    return main_loop, shutdown_mgr, sender
 
 
 if __name__ == "__main__":
-    main_loop, shutdown_mgr, _ = build_app()
-    shutdown_mgr.install_signal_handlers()
+    config = ConfigLoader.load("conf/bot.yaml")
+
+    bot = BotClient()
+    main_loop, shutdown_mgr, sender = build_app(bot)
+
+    logger.info("Starting MainLoop and sender...")
+    sender.start()
     main_loop.start()
+    logger.info("MainLoop running. Connecting to QQ (bot_uin=%s)...", config.bot_uin)
+
     try:
-        # Block until interrupted
-        shutdown_mgr.main_loop._thread.join()
+        # bot.run() blocks: launches napcat, connects websocket, dispatches events.
+        # ncatbot catches KeyboardInterrupt internally and calls bot_exit().
+        bot.run(bt_uin=config.bot_uin, root=config.root_uin)
     except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received")
+    finally:
+        logger.info("Shutting down...")
         shutdown_mgr.shutdown(drain_pending=True)
-        sys.exit(0)

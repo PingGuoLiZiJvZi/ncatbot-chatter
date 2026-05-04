@@ -65,6 +65,7 @@ class BotConfig(BaseModel):
     api_key: str
     base_url: str = "https://api.deepseek.com/anthropic"
     model: str = "deepseek-v4-pro"
+    recheck_model: str = "deepseek-v4-flash"
     temperature: float = Field(default=1.3, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=1)
     emotion: EmotionConfig = EmotionConfig()
