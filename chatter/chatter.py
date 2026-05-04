@@ -1,5 +1,6 @@
 from memory.memory import MemoryManager
 from llm.LLM import ResponseLLM
+from chatter import tts
 from ncatbot.core import BotClient, GroupMessage, PrivateMessage
 from ncatbot.utils import get_log
 import yaml
@@ -7,12 +8,15 @@ import json
 import time
 import threading
 import numpy as np
+import os
 class Chatter:
 	def __init__(self):
 		self.memory = MemoryManager()
 		self.bot = BotClient()
 		self._log = get_log()
 		self.llm = ResponseLLM()
+		self.is_character = False
+		self.t = threading.Thread(target=self.mainloop)
 
 		with open("config.yaml", "r", encoding="utf-8") as f:
 			file = yaml.safe_load(f)
@@ -25,22 +29,92 @@ class Chatter:
 		@self.bot.group_event()
 		async def on_group_message(msg: GroupMessage):
 			self._log.info(msg)
-
-			await self.memory.add_group_memory(msg)
+			if(self.is_character):
+				await self.memory.add_group_memory(msg)
+			else:
+				self.random_number(msg)
+				self.random_picture(msg)
+				self.ccb(msg)
+				self.text_to_speech(msg)
 
 		@self.bot.private_event()
 		async def on_private_message(msg: PrivateMessage):
 			self._log.info(msg)
-		
-			if(msg.user_id == int(self.root) and msg.raw_message == "启动"):
-				self._log.info("Bot is starting...")
-				t = threading.Thread(target=self.mainloop, daemon=True)
-				t.start()
-			else:
+			self.character_control(msg)
+			if(self.is_character):
 				await self.memory.add_private_memory(msg)
+			else:
+				pass
 		
 	def run(self):
 		self.bot.run(bt_uin=self.bot_uin, root=self.root)
+#-----------------------------------------------简单功能插件---------------------------------------------------------------------------------------------------------------------------------
+#今日人品功能插件，当有人发送“今日人品”时，随机生成一个0-100的数字，回复"你今日的人品值为{数字}，请谨慎使用"。
+	def random_number(self,msg:GroupMessage):
+		if(msg.raw_message == "今日人品"):
+			random_number = np.random.randint(0, 101)
+			self.bot.api.post_group_msg_sync(msg.group_id, f"你今日的人品值为{random_number}", at=msg.user_id)
+	
+	def random_picture(self, msg:GroupMessage):# 随机发送一张图片
+		#判断消息前五个字符是否为“随机图片 ”
+		#随后解析出其后的目录名，在D:\军火库下查询是否有该目录名的文件夹
+		#如果有，打开并随机发送一张图片
+		#如果没有，做出提示
+		if(msg.raw_message[:2] == "随机"):
+			directory_name = msg.raw_message[2:]
+			directory_path = os.path.join("D:\\军火库", directory_name)
+			if os.path.exists(directory_path) and os.path.isdir(directory_path):
+				files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
+				if files:
+					random_file = np.random.choice(files)
+					file_path = os.path.join(directory_path, random_file)
+					self.bot.api.post_group_msg_sync(msg.group_id,  image=file_path)
+				else:
+					self.bot.api.post_group_msg_sync(msg.group_id, "这东西没图")
+			else:
+				self.bot.api.post_group_msg_sync(msg.group_id, "没这东西")
+
+	def ccb(self,msg:GroupMessage):
+		if 'ccb' in msg.raw_message:
+			#检查 at 键是否存在
+			at_user_id = None
+			for mess in msg.message:
+				if(mess['type'] == 'at' and mess['data']['qq']!='all'):
+					at_user_id = mess['data']['qq']
+			if not at_user_id is None:
+				random_number1 = np.random.randint(1, 81)
+				random_number2 = np.random.randint(1, 81)
+				self.bot.api.post_group_msg_sync(msg.group_id, f"{msg.sender.card}为你提供了ccb服务,持续了{random_number1}min,注入了{random_number2}ml生命精华", at=at_user_id)
+		
+	def text_to_speech(self, msg:GroupMessage):
+		if 'tts:' == msg.raw_message[:4] :
+			text = msg.raw_message.replace('tts:','')
+			if text:
+				speech_tensors = tts.send_request(text)
+				for speech_tensor in speech_tensors:
+					if speech_tensor is not None:
+						filename = f"output_{msg.message_id}.wav"
+						filename = os.path.abspath(filename)
+						tts.save_as_wav(speech_tensor, filename)
+						self.bot.api.post_group_file_sync(msg.group_id, record=filename)
+						os.remove(filename)
+					else:
+						self.bot.api.post_group_msg_sync(msg.group_id, "生成语音失败")
+			else:
+				self.bot.api.post_group_msg_sync(msg.group_id, "请提供文本以生成语音")
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------			
+
+	def character_control(self, msg:PrivateMessage):
+		if(msg.user_id == int(self.root) and msg.raw_message == "启动角色扮演"):
+			if not self.is_character:
+				self._log.info("Bot is starting...")
+				self.t.start()
+				self.is_character = True
+		elif(msg.user_id == int(self.root) and msg.raw_message == "停止角色扮演"):
+			self._log.info("Bot is stopping...")
+			self.is_character = False
+			self.t.join()
+			self._log.info("Bot has stopped.")
 
 	def calculate_send_interval(self):
 		a = self.min_send_interval
@@ -64,6 +138,8 @@ class Chatter:
 			for memory in self.memory.group_memory:
 				if(len(memory.unread_memory) > 0):
 					continue
+				if not self.is_character:
+					return
 			time.sleep(self.loop_interval*60)
 
 	def loop(self):
