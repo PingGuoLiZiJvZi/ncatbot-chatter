@@ -97,3 +97,6 @@ class LLMClient:
             return True
         except LLMError:
             raise
+
+    def close(self) -> None:
+        pass
