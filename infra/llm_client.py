@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Any
 
-from openai import OpenAI, APITimeoutError, APIStatusError, RateLimitError
+import anthropic
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ class LLMClient:
     def __init__(
         self,
         api_key: str,
-        base_url: str,
-        model: str = "deepseek-chat",
+        base_url: str = "https://api.deepseek.com/anthropic",
+        model: str = "deepseek-v4-pro",
         temperature: float = 1.3,
         max_tokens: int = 2048,
         timeout: float = 30.0,
@@ -37,7 +37,7 @@ class LLMClient:
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.max_retries = max_retries
-        self._client = OpenAI(
+        self._client = anthropic.Anthropic(
             api_key=api_key,
             base_url=base_url,
             timeout=timeout,
@@ -50,32 +50,50 @@ class LLMClient:
             return "****"
         return key[:4] + "****" + key[-4:]
 
-    def chat_text(self, messages: list[dict[str, Any]]) -> str:
+    def chat_text(self, messages: list[dict[str, Any]], system: str = "") -> str:
         last_exc: Exception | None = None
+
+        # Separate system message from conversation messages
+        system_text = system
+        conv_messages = []
+        for msg in messages:
+            if msg.get("role") == "system":
+                system_text = msg.get("content", "")
+            else:
+                conv_messages.append(msg)
+
+        # Ensure messages alternate user/assistant and start with user
+        if not conv_messages or conv_messages[0].get("role") != "user":
+            conv_messages.insert(0, {"role": "user", "content": "(no input)"})
+
         for attempt in range(1, self.max_retries + 1):
             try:
                 logger.debug(
                     "LLM request attempt=%d model=%s key=%s",
                     attempt, self.model, self._api_key_masked,
                 )
-                resp = self._client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                )
-                text = resp.choices[0].message.content or ""
+                kwargs: dict[str, Any] = {
+                    "model": self.model,
+                    "messages": conv_messages,
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens,
+                }
+                if system_text:
+                    kwargs["system"] = system_text
+
+                resp = self._client.messages.create(**kwargs)
+                text = resp.content[0].text if resp.content else ""
                 logger.debug("LLM response length=%d", len(text))
                 return text
-            except APITimeoutError as e:
+            except anthropic.APITimeoutError as e:
                 last_exc = e
                 logger.warning("LLM timeout attempt=%d: %s", attempt, e)
-            except RateLimitError as e:
+            except anthropic.RateLimitError as e:
                 last_exc = e
                 logger.warning("LLM rate limit attempt=%d: %s", attempt, e)
                 if attempt < self.max_retries:
                     time.sleep(2 ** attempt)
-            except APIStatusError as e:
+            except anthropic.APIStatusError as e:
                 last_exc = e
                 logger.error("LLM API error attempt=%d status=%d: %s", attempt, e.status_code, e)
                 if e.status_code >= 500 and attempt < self.max_retries:
@@ -85,9 +103,9 @@ class LLMClient:
             except Exception as e:
                 raise LLMError(f"LLM unexpected error: {e}") from e
 
-        if isinstance(last_exc, APITimeoutError):
+        if isinstance(last_exc, anthropic.APITimeoutError):
             raise LLMTimeoutError(f"LLM timeout after {self.max_retries} retries") from last_exc
-        if isinstance(last_exc, RateLimitError):
+        if isinstance(last_exc, anthropic.RateLimitError):
             raise LLMRateLimitError(f"LLM rate limited after {self.max_retries} retries") from last_exc
         raise LLMError(f"LLM failed after {self.max_retries} retries") from last_exc
 

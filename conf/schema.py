@@ -63,8 +63,8 @@ class BotConfig(BaseModel):
     bot_uin: str
     root_uin: str
     api_key: str
-    base_url: str = "https://api.deepseek.com/v1"
-    model: str = "deepseek-chat"
+    base_url: str = "https://api.deepseek.com/anthropic"
+    model: str = "deepseek-v4-pro"
     temperature: float = Field(default=1.3, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=1)
     emotion: EmotionConfig = EmotionConfig()

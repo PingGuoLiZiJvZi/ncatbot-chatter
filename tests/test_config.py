@@ -11,8 +11,8 @@ class TestBotConfig:
         cfg = BotConfig(bot_uin="123", root_uin="456", api_key="sk-test")
         assert cfg.bot_uin == "123"
         assert cfg.root_uin == "456"
-        assert cfg.base_url == "https://api.deepseek.com/v1"
-        assert cfg.model == "deepseek-chat"
+        assert cfg.base_url == "https://api.deepseek.com/anthropic"
+        assert cfg.model == "deepseek-v4-pro"
         assert cfg.temperature == 1.3
         assert cfg.max_tokens == 2048
 
