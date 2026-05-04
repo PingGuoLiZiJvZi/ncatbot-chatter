@@ -1,0 +1,20 @@
+# Character configuration template
+# Copy to character.yaml and customize before running
+
+name: "角色名"
+description: |
+  在这里写角色的基本描述。
+
+personality:
+  traits:
+    - "特征1"
+    - "特征2"
+  speaking_style: "说话风格描述"
+  background: "背景故事"
+
+behavior:
+  rules:
+    - "行为准则1"
+    - "行为准则2"
+  topics_to_avoid:
+    - "禁忌话题1"

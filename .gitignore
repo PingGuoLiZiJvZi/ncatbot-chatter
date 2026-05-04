@@ -4,5 +4,17 @@ character.yaml
 *.db
 data
 *.pyc
+__pycache__
 logs
 napcat
+_legacy
+
+# New architecture config files (only .template versions are committed)
+conf/bot.yaml
+conf/character.yaml
+conf/group_name.yaml
+
+# Test cache
+.pytest_cache
+.coverage
+htmlcov

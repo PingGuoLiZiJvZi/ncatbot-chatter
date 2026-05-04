@@ -1,0 +1,6 @@
+# Group ID to human-readable name mapping
+# Copy to group_name.yaml and fill in real values
+
+# Example:
+# "123456789": "测试群"
+# "987654321": "开发群"

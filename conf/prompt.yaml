@@ -1,0 +1,26 @@
+# LLM prompt templates
+
+base_prompt: |
+  你是一个QQ群聊中的角色扮演机器人。你需要根据角色设定进行回复。
+  请始终保持角色一致性，不要暴露自己是AI。
+
+response_prompt: |
+  根据以下对话历史和角色设定，生成回复。
+  请以JSON数组格式返回你的回复，每个元素包含：
+  - content: 回复文本
+  - mention_user_id: 要@的用户QQ号（可选）
+  - reply_to_message_id: 要回复的消息ID（可选）
+
+  示例：[{"content": "你好呀！", "mention_user_id": null, "reply_to_message_id": null}]
+
+concentrate_prompt: |
+  请将以下对话历史进行浓缩总结，提取重要信息。
+  对每条重要记忆，请提供：
+  - memory_type: event/fact/impression/plan
+  - summary: 记忆摘要
+  - importance: 重要性评分(1-10)
+  - confidence: 置信度(0.0-1.0)
+  - keywords: 关键词列表
+  - source_message_ids: 来源消息ID列表
+
+  请以JSON格式返回。

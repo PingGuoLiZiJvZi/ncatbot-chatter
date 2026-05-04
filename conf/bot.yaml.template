@@ -1,0 +1,87 @@
+# Bot configuration template
+# Copy to bot.yaml and fill in real values before running
+
+bot_uin: "YOUR_BOT_QQ_NUMBER"
+root_uin: "YOUR_ROOT_QQ_NUMBER"
+
+# LLM API configuration (OpenAI-compatible)
+api_key: "YOUR_API_KEY"
+base_url: "https://api.deepseek.com/v1"
+model: "deepseek-chat"
+temperature: 1.3
+max_tokens: 2048
+
+# Emotion model parameters
+emotion:
+  valence_regression: 0.01      # per minute, valence moves toward 0
+  energy_regen_per_hour: 0.1    # energy recovery rate per hour
+  sleep_regen_multiplier: 3.0   # faster recovery during sleep hours
+  valence_step: 0.1             # step size for emotion events
+  energy_step: 0.05             # energy cost per message sent
+  interest_step: 0.1            # interest change step
+
+# Memory system configuration
+memory:
+  short_term_max: 20
+  pending_threshold: 12
+  thresholds:
+    event: 6
+    fact: 6
+    impression: 5
+    plan: 7
+  dedup_ttl_days: 7
+  archive_expired: true
+
+# Send timing configuration
+send:
+  min_interval_same_chat: 120   # seconds, minimum interval between messages in same chat
+  passive_delay_mu: 30          # seconds, passive reply delay mean
+  passive_delay_sigma: 15       # seconds, passive reply delay std dev
+  passive_delay_min: 5          # seconds, passive reply delay minimum
+  passive_delay_max: 120        # seconds, passive reply delay maximum
+  active_delay_mu: 120          # seconds, active speak delay mean
+  active_delay_sigma: 60        # seconds, active speak delay std dev
+  active_delay_min: 30          # seconds, active speak delay minimum
+  active_delay_max: 300         # seconds, active speak delay maximum
+
+# Activity curve configuration (24-hour weights, 0.0~1.0)
+activity:
+  hourly_weights:
+    - 0.0   # 00:00
+    - 0.0   # 01:00
+    - 0.0   # 02:00
+    - 0.0   # 03:00
+    - 0.0   # 04:00
+    - 0.0   # 05:00
+    - 0.0   # 06:00
+    - 0.1   # 07:00
+    - 0.3   # 08:00
+    - 0.5   # 09:00
+    - 0.7   # 10:00
+    - 0.8   # 11:00
+    - 0.6   # 12:00
+    - 0.7   # 13:00
+    - 0.8   # 14:00
+    - 0.9   # 15:00
+    - 0.9   # 16:00
+    - 0.8   # 17:00
+    - 0.7   # 18:00
+    - 0.8   # 19:00
+    - 0.9   # 20:00
+    - 0.8   # 21:00
+    - 0.5   # 22:00
+    - 0.2   # 23:00
+  sleep_hours:
+    - 0     # sleep start hour (inclusive)
+    - 7     # sleep end hour (exclusive)
+
+# Main loop intervals (seconds)
+loop:
+  passive_interval: 3           # passive tick interval
+  active_interval: 60           # active tick interval
+  concentrate_interval: 300     # concentrate tick interval
+
+# LLM failure thresholds
+llm:
+  max_consecutive_failures: 5   # failures before entering DEGRADED
+  health_check_interval: 10     # cycles between health checks in DEGRADED mode
