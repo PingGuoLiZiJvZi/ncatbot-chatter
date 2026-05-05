@@ -19,7 +19,6 @@ from core.active_gate import ActiveSpeakGate
 from core.state import BotState, StateEventQueue
 from generation.content_gen import ContentGenerator
 from generation.formatter import ResponseFormatter
-from generation.recheck import RecheckService
 from infra.action_log import ActionLog
 from infra.bot_adapter import BotAdapter
 from infra.llm_client import LLMClient
@@ -81,16 +80,6 @@ def build_app(bot: BotClient, config_path: str = "conf/bot.yaml") -> tuple:
     content_gen = ContentGenerator(llm, formatter)
     degraded_policy = DegradedReplyPolicy(config)
 
-    # Recheck (pre-send LLM filter using fast model)
-    llm_flash = LLMClient(
-        api_key=config.api_key,
-        base_url=config.base_url,
-        model=config.recheck_model,
-        temperature=0.3,
-        max_tokens=32,
-    )
-    recheck = RecheckService(llm_flash, memory)
-
     # Concentration
     concentrator = ConcentrateJob(llm, long_term, config)
 
@@ -114,7 +103,6 @@ def build_app(bot: BotClient, config_path: str = "conf/bot.yaml") -> tuple:
         state_events=state_events,
         ingestor=ingestor,
         concentrator=concentrator,
-        recheck=recheck,
     )
 
     # Main loop
@@ -134,15 +122,23 @@ def build_app(bot: BotClient, config_path: str = "conf/bot.yaml") -> tuple:
     )
 
     # ── Register ncatbot event handlers ──────────────────────────────
+    bot_uin = config.bot_uin
+
     @bot.group_event()
     async def on_group_message(msg):
-        logger.info("Group message from %s in %s: %s", msg.user_id, msg.group_id, msg.raw_message[:50] if hasattr(msg, 'raw_message') else '')
+        raw = getattr(msg, "raw_message", "") or ""
+        logger.info("Group message from %s in %s: %s", msg.user_id, msg.group_id, raw[:50])
         incoming_queue.put(msg)
+        # Wake up MainLoop immediately for @ mentions
+        if f"@{bot_uin}" in raw or f"[CQ:at,qq={bot_uin}]" in raw:
+            main_loop.wake_up()
 
     @bot.private_event()
     async def on_private_message(msg):
-        logger.info("Private message from %s: %s", msg.user_id, msg.raw_message[:50] if hasattr(msg, 'raw_message') else '')
+        logger.info("Private message from %s: %s", msg.user_id, (getattr(msg, "raw_message", "") or "")[:50])
         incoming_queue.put(msg)
+        # Private messages are always P0 — wake up immediately
+        main_loop.wake_up()
 
     return main_loop, shutdown_mgr, sender
 

@@ -17,7 +17,6 @@ from core.schemas import (
 )
 from core.state import BotState, StateEventQueue
 from generation.content_gen import ContentGenerator
-from generation.recheck import RecheckService
 from infra.action_log import ActionLog
 from infra.llm_client import LLMClient
 from infra.message_ingestor import MessageIngestor
@@ -46,7 +45,6 @@ class Orchestrator:
         state_events: StateEventQueue,
         ingestor: MessageIngestor,
         concentrator: ConcentrateJob,
-        recheck: RecheckService | None = None,
     ):
         self.state = state
         self.engine = engine
@@ -61,7 +59,6 @@ class Orchestrator:
         self.state_events = state_events
         self.ingestor = ingestor
         self.concentrator = concentrator
-        self.recheck = recheck
 
     def _drain_ingest(self) -> int:
         return self.ingestor.drain(max_items=50)
@@ -120,12 +117,6 @@ class Orchestrator:
             self.action_log.record_batch(decision.plans, "cancelled", "llm_failure")
             return
 
-        if self.recheck and generated:
-            before = len(generated)
-            generated = self.recheck.filter_actions(generated)
-            if len(generated) < before:
-                logger.info("Recheck filtered %d -> %d actions", before, len(generated))
-
         self._record_and_schedule(generated)
 
     def run_active_tick(self) -> None:
@@ -155,12 +146,6 @@ class Orchestrator:
             self._emit_event(StateEventType.LLM_FAILED, {"tick_type": "active", "error": str(e)})
             self.action_log.record_batch(decision.plans, "cancelled", "llm_failure")
             return
-
-        if self.recheck and generated:
-            before = len(generated)
-            generated = self.recheck.filter_actions(generated)
-            if len(generated) < before:
-                logger.info("Recheck filtered %d -> %d actions", before, len(generated))
 
         self._record_and_schedule(generated)
 

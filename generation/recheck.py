@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from core.schemas import GeneratedAction
+from core.schemas import GeneratedAction, Priority
 from infra.llm_client import LLMClient, LLMError
 from memory.manager import MemoryManager
 
@@ -30,6 +30,10 @@ class RecheckService:
 
         kept: list[GeneratedAction] = []
         for action in actions:
+            # P0 (at_bot / private_message) — always send, no recheck
+            if action.plan.priority == Priority.P0:
+                kept.append(action)
+                continue
             if self._should_reply(action):
                 kept.append(action)
             else:

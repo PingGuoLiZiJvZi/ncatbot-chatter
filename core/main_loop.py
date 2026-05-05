@@ -32,6 +32,7 @@ class MainLoop:
         self.state = state
         self.config = config
         self._shutdown = threading.Event()
+        self._wakeup = threading.Event()
         self._thread: threading.Thread | None = None
 
     def start(self) -> None:
@@ -40,6 +41,10 @@ class MainLoop:
         self._thread = threading.Thread(target=self._run, daemon=True, name="mainloop")
         self._thread.start()
         logger.info("MainLoop started")
+
+    def wake_up(self) -> None:
+        """Called from event handlers to trigger immediate processing of P0 messages."""
+        self._wakeup.set()
 
     def _run(self) -> None:
         passive_interval = self.config.loop.passive_interval
@@ -62,10 +67,15 @@ class MainLoop:
                 self.orchestrator.run_concentrate_tick()
                 last_concentrate = now
 
+            # Wait for next tick, but wake up immediately if P0 message arrives
+            self._wakeup.clear()
             self._shutdown.wait(timeout=passive_interval)
+            if self._wakeup.is_set():
+                logger.debug("Woken up by P0 message, skipping sleep")
 
     def stop(self) -> None:
         self._shutdown.set()
+        self._wakeup.set()  # unblock wait
         if self._thread:
             self._thread.join(timeout=10)
         logger.info("MainLoop stopped")
